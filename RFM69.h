@@ -68,6 +68,7 @@ class RFM69 {
     void sleep();
     byte readTemperature(byte calFactor=0); //get CMOS temperature (8bit)
     void rcCalibration(); //calibrate the internal RC oscillator for use in wide temperature variations - see datasheet section [4.3.5. RC Timer Accuracy]
+    void setReceiveCallback(void (*receiveCallback)(RFM69));
 
     // allow hacking registers by making these public
     byte readReg(byte addr);
@@ -86,6 +87,7 @@ class RFM69 {
     bool _promiscuousMode;
     byte _powerLevel;
     bool _isRFM69HW;
+    void (*_receiveCallback)(RFM69);
 
     void receiveBegin();
     void setMode(byte mode);

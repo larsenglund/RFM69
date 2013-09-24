@@ -13,6 +13,7 @@
 RFM69 radio;
 SPIFlash flash(8, 0xEF30); //EF40 for 16mbit windbond chip
 bool promiscuousMode = false; //set to 'true' to sniff all packets on the same network
+bool useReceiveCallback = true; // set true to use a callback when the radio receives data instead of using polling with receiveDone()  
 
 void setup() {
   Serial.begin(SERIAL_BAUD);
@@ -28,6 +29,8 @@ void setup() {
     Serial.println("SPI Flash Init OK!");
   else
     Serial.println("SPI Flash Init FAIL! (is chip present?)");
+  if (useReceiveCallback)
+    radio.setReceiveCallback(ReceiveCallback); 
 }
 
 byte ackCount=0;
@@ -86,40 +89,42 @@ void loop() {
     }
   }
 
-  if (radio.receiveDone())
-  {
-    Serial.print('[');Serial.print(radio.SENDERID, DEC);Serial.print("] ");
-    if (promiscuousMode)
+  if (!useReceiveCallback) {
+    if (radio.receiveDone())
     {
-      Serial.print("to [");Serial.print(radio.TARGETID, DEC);Serial.print("] ");
-    }
-    for (byte i = 0; i < radio.DATALEN; i++)
-      Serial.print((char)radio.DATA[i]);
-    Serial.print("   [RX_RSSI:");Serial.print(radio.readRSSI());Serial.print("]");
-    
-    if (radio.ACK_REQUESTED)
-    {
-      byte theNodeID = radio.SENDERID;
-      radio.sendACK();
-      Serial.print(" - ACK sent.");
-
-      // When a node requests an ACK, respond to the ACK
-      // and also send a packet requesting an ACK (every 3rd one only)
-      // This way both TX/RX NODE functions are tested on 1 end at the GATEWAY
-      if (ackCount++%3==0)
+      Serial.print('[');Serial.print(radio.SENDERID, DEC);Serial.print("] ");
+      if (promiscuousMode)
       {
-        Serial.print(" Pinging node ");
-        Serial.print(theNodeID);
-        Serial.print(" - ACK...");
-        delay(3); //need this when sending right after reception .. ?
-        if (radio.sendWithRetry(theNodeID, "ACK TEST", 8, 0))  // 0 = only 1 attempt, no retries
-          Serial.print("ok!");
-        else Serial.print("nothing");
+        Serial.print("to [");Serial.print(radio.TARGETID, DEC);Serial.print("] ");
       }
+      for (byte i = 0; i < radio.DATALEN; i++)
+        Serial.print((char)radio.DATA[i]);
+      Serial.print("   [RX_RSSI:");Serial.print(radio.readRSSI());Serial.print("]");
       
+      if (radio.ACK_REQUESTED)
+      {
+        byte theNodeID = radio.SENDERID;
+        radio.sendACK();
+        Serial.print(" - ACK sent.");
+  
+        // When a node requests an ACK, respond to the ACK
+        // and also send a packet requesting an ACK (every 3rd one only)
+        // This way both TX/RX NODE functions are tested on 1 end at the GATEWAY
+        if (ackCount++%3==0)
+        {
+          Serial.print(" Pinging node ");
+          Serial.print(theNodeID);
+          Serial.print(" - ACK...");
+          delay(3); //need this when sending right after reception .. ?
+          if (radio.sendWithRetry(theNodeID, "ACK TEST", 8, 0))  // 0 = only 1 attempt, no retries
+            Serial.print("ok!");
+          else Serial.print("nothing");
+        }
+        
+      }
+      Serial.println();
+      Blink(LED,3);
     }
-    Serial.println();
-    Blink(LED,3);
   }
 }
 
@@ -129,4 +134,41 @@ void Blink(byte PIN, int DELAY_MS)
   digitalWrite(PIN,HIGH);
   delay(DELAY_MS);
   digitalWrite(PIN,LOW);
+}
+
+void ReceiveCallback(RFM69 radio) 
+{
+  Serial.print("Callback ");
+  Serial.print('[');Serial.print(radio.SENDERID, DEC);Serial.print("] ");
+  if (promiscuousMode)
+  {
+    Serial.print("to [");Serial.print(radio.TARGETID, DEC);Serial.print("] ");
+  }
+  for (byte i = 0; i < radio.DATALEN; i++)
+    Serial.print((char)radio.DATA[i]);
+  Serial.print("   [RX_RSSI:");Serial.print(radio.readRSSI());Serial.print("]");
+  
+  if (radio.ACK_REQUESTED)
+  {
+    byte theNodeID = radio.SENDERID;
+    radio.sendACK();
+    Serial.print(" - ACK sent.");
+
+    // When a node requests an ACK, respond to the ACK
+    // and also send a packet requesting an ACK (every 3rd one only)
+    // This way both TX/RX NODE functions are tested on 1 end at the GATEWAY
+    if (ackCount++%3==0)
+    {
+      Serial.print(" Pinging node ");
+      Serial.print(theNodeID);
+      Serial.print(" - ACK...");
+      delay(3); //need this when sending right after reception .. ?
+      if (radio.sendWithRetry(theNodeID, "ACK TEST", 8, 0))  // 0 = only 1 attempt, no retries
+        Serial.print("ok!");
+      else Serial.print("nothing");
+    }
+    
+  }
+  Serial.println();
+  Blink(LED,3);
 }

@@ -257,6 +257,10 @@ void RFM69::interruptHandler() {
     }
     unselect();
     setMode(RF69_MODE_RX);
+    if (_receiveCallback) {
+      _receiveCallback(*selfPointer);
+      receiveBegin();
+    }
   }
   //digitalWrite(4, 0);
 }
@@ -407,4 +411,10 @@ void RFM69::rcCalibration()
 {
   writeReg(REG_OSC1, RF_OSC1_RCCAL_START);
   while ((readReg(REG_OSC1) & RF_OSC1_RCCAL_DONE) == 0x00);
+}
+
+void RFM69::setReceiveCallback(void (*receiveCallback)(RFM69))
+{
+	_receiveCallback = receiveCallback;
+  receiveBegin();
 }
